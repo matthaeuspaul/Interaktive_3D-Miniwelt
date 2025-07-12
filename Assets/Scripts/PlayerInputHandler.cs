@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -15,19 +14,19 @@ public class PlayerInputHandler : MonoBehaviour
     [SerializeField] private string rotation = "Rotation";
     [SerializeField] private string jump = "Jump";
     [SerializeField] private string sprint = "Sprint";
+    [SerializeField] private string interact = "Interact";
 
     private InputAction movementAction;
     private InputAction rotationAction;
     private InputAction jumpAction;
     private InputAction sprintAction;
+    private InputAction interactAction;
 
     public Vector2 MovementInput { get; private set; }
-
     public Vector2 RotationInput { get; private set; }
-
     public bool JumpPressed { get; private set; }
-
     public bool SprintPressed { get; private set; }
+    public bool InteractPressed { get; private set; }
 
     private void Awake()
     {
@@ -37,6 +36,7 @@ public class PlayerInputHandler : MonoBehaviour
         rotationAction = mapReference.FindAction(rotation);
         jumpAction = mapReference.FindAction(jump);
         sprintAction = mapReference.FindAction(sprint);
+        interactAction = mapReference.FindAction(interact);
 
         SubscribeActionValuesToInputEvents();
     }
@@ -54,6 +54,9 @@ public class PlayerInputHandler : MonoBehaviour
 
         sprintAction.performed += inputInfo => SprintPressed = true;
         sprintAction.canceled += inputInfo => SprintPressed = false;
+
+        interactAction.performed += inputInfo => InteractPressed = true;
+        interactAction.canceled += inputInfo => InteractPressed = false;
     }
 
     private void OnEnable()
@@ -66,3 +69,4 @@ public class PlayerInputHandler : MonoBehaviour
         playerControls.FindActionMap(actionMapName).Disable();
     }
 }
+
