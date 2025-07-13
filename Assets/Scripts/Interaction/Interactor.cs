@@ -47,14 +47,114 @@ public class Interactor : MonoBehaviour
         // Prüfe kontinuierlich auf Interactables
         CheckForInteractables();
 
-        // Handle Interaction Input
+        // Handle Interaction Input (F-Taste)
         if (_inputHandler != null && _inputHandler.InteractPressed)
         {
             Debug.Log("Interact button pressed");
-            if (_currentInteractable != null && _currentInteractable.CanInteract())
+            HandleInteraction();
+        }
+
+        // Handle Drop Input (G-Taste)
+        if (_inputHandler != null && _inputHandler.DropPressed)
+        {
+            Debug.Log("Drop button pressed");
+            HandleDropAction();
+        }
+    }
+
+    private void HandleInteraction()
+    {
+        if (_currentInteractable == null) return;
+
+        // Prüfe ob das Objekt IItemUsable implementiert
+        IItemUsable itemUsable = _currentInteractable as IItemUsable;
+
+        if (itemUsable != null)
+        {
+            // Spezielle Behandlung für IItemUsable-Objekte
+            HandleItemUsableInteraction(itemUsable);
+        }
+        else
+        {
+            // Standard-Interaktion
+            HandleStandardInteraction();
+        }
+    }
+
+    private void HandleItemUsableInteraction(IItemUsable itemUsable)
+    {
+        Debug.Log("Handling IItemUsable interaction");
+
+        // Prüfe ob Player ein Item hält
+        if (PickUpItemInteraction.IsPlayerHoldingItem())
+        {
+            PickUpItemInteraction heldItem = PickUpItemInteraction.GetCurrentHeldItem();
+
+            if (heldItem != null && itemUsable.CanUseItem(heldItem))
             {
-                Debug.Log($"Interacting with: {_currentInteractable}");
+                Debug.Log($"Using item {heldItem.gameObject.name} on {itemUsable}");
+
+                // Verwende das Item
+                if (itemUsable.UseItem(heldItem))
+                {
+                    // Item wurde erfolgreich verwendet, vernichte es
+                    Debug.Log($"Item {heldItem.gameObject.name} consumed");
+                    Destroy(heldItem.gameObject);
+                }
+            }
+            else
+            {
+                Debug.Log("Cannot use held item with this object");
+            }
+        }
+        else
+        {
+            // Fallback auf normale Interaktion wenn kein Item gehalten wird
+            if (_currentInteractable.CanInteract())
+            {
+                Debug.Log("Using fallback interaction for IItemUsable");
                 _currentInteractable.Interact(this);
+            }
+        }
+    }
+
+    private void HandleStandardInteraction()
+    {
+        Debug.Log("Handling standard interaction");
+
+        // Normale Interaktion nur wenn kein Item gehalten wird ODER wenn es ein PickUpItemInteraction ist
+        PickUpItemInteraction pickupItem = _currentInteractable as PickUpItemInteraction;
+
+        if (pickupItem != null)
+        {
+            // PickUpItemInteraction hat ihre eigene Logik für Drop/Pickup
+            if (_currentInteractable.CanInteract())
+            {
+                _currentInteractable.Interact(this);
+            }
+        }
+        else if (!PickUpItemInteraction.IsPlayerHoldingItem())
+        {
+            // Normale Objekte nur ohne gehaltenes Item
+            if (_currentInteractable.CanInteract())
+            {
+                _currentInteractable.Interact(this);
+            }
+        }
+        else
+        {
+            Debug.Log("Cannot interact with standard object while holding item");
+        }
+    }
+
+    private void HandleDropAction()
+    {
+        if (PickUpItemInteraction.IsPlayerHoldingItem())
+        {
+            PickUpItemInteraction heldItem = PickUpItemInteraction.GetCurrentHeldItem();
+            if (heldItem != null && PickUpItemInteraction.GetCurrentHolder() == this)
+            {
+                heldItem.DropItem();
             }
         }
     }
@@ -62,30 +162,65 @@ public class Interactor : MonoBehaviour
     private void CheckForInteractables()
     {
         IInteractable newInteractable = null;
+        bool isHoldingItem = PickUpItemInteraction.IsPlayerHoldingItem();
 
-        if (DoInteractionTest(out newInteractable))
+        // Prüfe zuerst ob der Player ein Item hält
+        if (isHoldingItem)
         {
-            if (newInteractable != _currentInteractable)
+            PickUpItemInteraction heldItem = PickUpItemInteraction.GetCurrentHeldItem();
+
+            // Prüfe ob dieses Item vom aktuellen Interactor gehalten wird
+            if (heldItem != null && PickUpItemInteraction.GetCurrentHolder() == this)
+            {
+                // Mache einen Raycast um zu sehen, ob wir auf ein IItemUsable-Objekt schauen
+                if (DoInteractionTest(out IInteractable raycastTarget))
+                {
+                    IItemUsable itemUsable = raycastTarget as IItemUsable;
+
+                    if (itemUsable != null)
+                    {
+                        // Wir schauen auf ein IItemUsable-Objekt - zeige dessen Prompt
+                        newInteractable = raycastTarget;
+                    }
+                    else
+                    {
+                        // Wir schauen auf ein normales Objekt - zeige Drop-Prompt
+                        newInteractable = heldItem;
+                    }
+                }
+                else
+                {
+                    // Wir schauen auf nichts - zeige Drop-Prompt
+                    newInteractable = heldItem;
+                }
+            }
+        }
+        else
+        {
+            // Falls kein Item gehalten wird, mache normalen Raycast
+            DoInteractionTest(out newInteractable);
+        }
+
+        // Update UI basierend auf dem gefundenen Interactable
+        if (newInteractable != _currentInteractable)
+        {
+            if (newInteractable != null)
             {
                 Debug.Log($"Found NEW interactable: {newInteractable}");
                 _currentInteractable = newInteractable;
                 ShowInteractionPrompt();
             }
-            else if (_currentInteractable != null)
-            {
-                // Gleiches Interactable - aktualisiere den Text falls sich der Status geändert hat
-                UpdateInteractionPrompt();
-            }
-        }
-        else
-        {
-            // Kein Interactable mehr im Blick
-            if (_currentInteractable != null)
+            else
             {
                 Debug.Log("Lost interactable");
                 _currentInteractable = null;
                 HideInteractionPrompt();
             }
+        }
+        else if (_currentInteractable != null)
+        {
+            // Gleiches Interactable - aktualisiere den Text falls sich der Status geändert hat
+            UpdateInteractionPrompt();
         }
     }
 
@@ -132,7 +267,7 @@ public class Interactor : MonoBehaviour
     {
         if (_interactionUI != null && _currentInteractable != null)
         {
-            string promptText = _currentInteractable.GetInteractionPrompt();
+            string promptText = GetCurrentInteractionPrompt();
             _interactionUI.ShowPrompt(promptText);
         }
     }
@@ -141,8 +276,35 @@ public class Interactor : MonoBehaviour
     {
         if (_interactionUI != null && _currentInteractable != null)
         {
-            string promptText = _currentInteractable.GetInteractionPrompt();
+            string promptText = GetCurrentInteractionPrompt();
             _interactionUI.UpdatePrompt(promptText);
+        }
+    }
+
+    private string GetCurrentInteractionPrompt()
+    {
+        if (_currentInteractable == null) return "";
+
+        // Prüfe ob das Objekt IItemUsable implementiert
+        IItemUsable itemUsable = _currentInteractable as IItemUsable;
+
+        if (itemUsable != null)
+        {
+            // Spezielle Prompt-Logik für IItemUsable
+            if (PickUpItemInteraction.IsPlayerHoldingItem())
+            {
+                PickUpItemInteraction heldItem = PickUpItemInteraction.GetCurrentHeldItem();
+                return itemUsable.GetUsePrompt(heldItem);
+            }
+            else
+            {
+                return itemUsable.GetUsePrompt(null);
+            }
+        }
+        else
+        {
+            // Standard-Prompt
+            return _currentInteractable.GetInteractionPrompt();
         }
     }
 
@@ -171,6 +333,13 @@ public class Interactor : MonoBehaviour
                 Gizmos.color = Color.green;
                 Gizmos.DrawWireSphere(rayEnd, 0.2f);
             }
+        }
+
+        // Visualisiere gehaltenes Item
+        if (PickUpItemInteraction.IsPlayerHoldingItem())
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(transform.position + Vector3.up * 2f, 0.3f);
         }
     }
 }

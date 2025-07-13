@@ -15,18 +15,21 @@ public class PlayerInputHandler : MonoBehaviour
     [SerializeField] private string jump = "Jump";
     [SerializeField] private string sprint = "Sprint";
     [SerializeField] private string interact = "Interact";
+    [SerializeField] private string drop = "Drop";
 
     private InputAction movementAction;
     private InputAction rotationAction;
     private InputAction jumpAction;
     private InputAction sprintAction;
     private InputAction interactAction;
+    private InputAction dropAction;
 
     public Vector2 MovementInput { get; private set; }
     public Vector2 RotationInput { get; private set; }
     public bool JumpPressed { get; private set; }
     public bool SprintPressed { get; private set; }
     public bool InteractPressed { get; private set; }
+    public bool DropPressed { get; private set; }
 
     private void Awake()
     {
@@ -37,6 +40,7 @@ public class PlayerInputHandler : MonoBehaviour
         jumpAction = mapReference.FindAction(jump);
         sprintAction = mapReference.FindAction(sprint);
         interactAction = mapReference.FindAction(interact);
+        dropAction = mapReference.FindAction(drop);
 
         SubscribeActionValuesToInputEvents();
     }
@@ -57,6 +61,9 @@ public class PlayerInputHandler : MonoBehaviour
 
         interactAction.performed += inputInfo => InteractPressed = true;
         interactAction.canceled += inputInfo => InteractPressed = false;
+
+        dropAction.performed += inputInfo => DropPressed = true;
+        dropAction.canceled += inputInfo => DropPressed = false;
     }
 
     private void OnEnable()
@@ -69,4 +76,3 @@ public class PlayerInputHandler : MonoBehaviour
         playerControls.FindActionMap(actionMapName).Disable();
     }
 }
-

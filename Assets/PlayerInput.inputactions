@@ -9,7 +9,7 @@
                     "name": "Movement",
                     "type": "Value",
                     "id": "d09e6733-1033-4180-8fdc-78ac119d6526",
-                    "expectedControlType": "Vector2",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": true
@@ -45,6 +45,15 @@
                     "name": "Interact",
                     "type": "Button",
                     "id": "973caaa5-4d96-49b1-a4b4-4527ce67e67a",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Drop",
+                    "type": "Button",
+                    "id": "23726f76-f27c-4060-909c-fd28ce637eb1",
                     "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
@@ -148,6 +157,17 @@
                     "processors": "",
                     "groups": "",
                     "action": "Interact",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "8fc00614-2494-49c3-b674-3545ad650b5a",
+                    "path": "<Keyboard>/g",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Drop",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }
