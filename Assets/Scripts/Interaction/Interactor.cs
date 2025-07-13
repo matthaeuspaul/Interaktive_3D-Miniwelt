@@ -6,6 +6,7 @@ public class Interactor : MonoBehaviour
     [SerializeField] private Vector3 _raycastOffset = new Vector3(0, 1f, 0);
     [SerializeField] private PlayerInputHandler _inputHandler;
     [SerializeField] private InteractionUI _interactionUI;
+    [SerializeField] private Camera _playerCamera;
 
     private LayerMask layerMask;
     private IInteractable _currentInteractable;
@@ -19,8 +20,26 @@ public class Interactor : MonoBehaviour
 
         if (_interactionUI == null)
         {
-            _interactionUI = FindObjectOfType<InteractionUI>();
+            _interactionUI = FindFirstObjectByType<InteractionUI>();
         }
+
+        if (_playerCamera == null)
+        {
+            _playerCamera = Camera.main;
+            if (_playerCamera == null)
+            {
+                _playerCamera = FindFirstObjectByType<Camera>();
+                Debug.LogWarning("Camera.main not found, using first Camera found");
+            }
+        }
+
+        if (_playerCamera == null)
+        {
+            Debug.LogError("No camera found! Please assign a camera to the Interactor.");
+        }
+
+        // LayerMask für alle Layer setzen
+        layerMask = ~0;
     }
 
     private void Update()
@@ -34,6 +53,7 @@ public class Interactor : MonoBehaviour
             Debug.Log("Interact button pressed");
             if (_currentInteractable != null && _currentInteractable.CanInteract())
             {
+                Debug.Log($"Interacting with: {_currentInteractable}");
                 _currentInteractable.Interact(this);
             }
         }
@@ -47,7 +67,7 @@ public class Interactor : MonoBehaviour
         {
             if (newInteractable != _currentInteractable)
             {
-                // Wechsel zu neuem Interactable
+                Debug.Log($"Found NEW interactable: {newInteractable}");
                 _currentInteractable = newInteractable;
                 ShowInteractionPrompt();
             }
@@ -62,6 +82,7 @@ public class Interactor : MonoBehaviour
             // Kein Interactable mehr im Blick
             if (_currentInteractable != null)
             {
+                Debug.Log("Lost interactable");
                 _currentInteractable = null;
                 HideInteractionPrompt();
             }
@@ -72,12 +93,36 @@ public class Interactor : MonoBehaviour
     {
         interactable = null;
 
-        Ray ray = new Ray(transform.position + _raycastOffset, transform.forward);
-
-        if (Physics.Raycast(ray, out RaycastHit hitInfo, _castDistance))
+        // Prüfe ob Kamera vorhanden ist
+        if (_playerCamera == null)
         {
+            Debug.LogError("No camera assigned to Interactor!");
+            return false;
+        }
+
+        // Raycast von der Kamera statt vom Player
+        Ray ray = _playerCamera.ScreenPointToRay(new Vector3(Screen.width / 2, Screen.height / 2, 0));
+
+        Debug.DrawRay(ray.origin, ray.direction * _castDistance, Color.red, 0.1f);
+
+        if (Physics.Raycast(ray, out RaycastHit hitInfo, _castDistance, layerMask))
+        {
+            Debug.Log($"Raycast hit: {hitInfo.collider.name} at distance {hitInfo.distance}");
             interactable = hitInfo.collider.GetComponent<IInteractable>();
-            return interactable != null;
+
+            if (interactable != null)
+            {
+                Debug.Log($"Found IInteractable component: {interactable}");
+                return true;
+            }
+            else
+            {
+                Debug.Log($"No IInteractable component on {hitInfo.collider.name}");
+            }
+        }
+        else
+        {
+            Debug.Log("Raycast hit nothing");
         }
 
         return false;
@@ -112,16 +157,20 @@ public class Interactor : MonoBehaviour
     private void OnDrawGizmos()
     {
         // Visualisiere den Raycast im Scene View
-        Gizmos.color = Color.red;
-        Vector3 rayStart = transform.position + _raycastOffset;
-        Vector3 rayEnd = rayStart + transform.forward * _castDistance;
-        Gizmos.DrawLine(rayStart, rayEnd);
-
-        // Zeige Raycast-Treffer
-        if (_currentInteractable != null)
+        if (_playerCamera != null)
         {
-            Gizmos.color = Color.green;
-            Gizmos.DrawWireSphere(rayEnd, 0.2f);
+            Gizmos.color = Color.red;
+            Ray ray = _playerCamera.ScreenPointToRay(new Vector3(Screen.width / 2, Screen.height / 2, 0));
+            Vector3 rayStart = ray.origin;
+            Vector3 rayEnd = rayStart + ray.direction * _castDistance;
+            Gizmos.DrawLine(rayStart, rayEnd);
+
+            // Zeige Raycast-Treffer
+            if (_currentInteractable != null)
+            {
+                Gizmos.color = Color.green;
+                Gizmos.DrawWireSphere(rayEnd, 0.2f);
+            }
         }
     }
 }
